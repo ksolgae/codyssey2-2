@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프리랜서 3.3% 정산 및 역산 계산기</title>
+    
+    <!-- 이미지 및 PDF 저장을 위한 외부 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #4A90E2;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-sub: #666666;
+            --border-color: #dddddd;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 480px;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: var(--primary-color);
+        }
+
+        /* 토글 스위치 및 옵션 */
+        .toggle-group, .option-group {
+            display: flex;
+            background-color: var(--bg-color);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .toggle-group label, .option-group label {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--text-sub);
+            transition: 0.3s;
+        }
+
+        .toggle-group input[type="radio"], .option-group input[type="radio"] {
+            display: none;
+        }
+
+        .toggle-group input[type="radio"]:checked + label,
+        .option-group input[type="radio"]:checked + label {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* 입력창 */
+        .input-wrapper {
+            margin-bottom: 24px;
+        }
+
+        .input-wrapper label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.2rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            text-align: right;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-wrapper input:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* 결과 영역 (캡처 대상) */
+        #capture-area {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .result-title {
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .result-amount {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .detail-row.total-tax {
+            border-top: 1px dashed var(--border-color);
+            padding-top: 8px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        /* 버튼 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .btn-calc {
+            background-color: var(--primary-color);
+            color: white;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .btn-save-img {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .btn-save-pdf {
+            background-color: #e67e22;
+            color: white;
+        }
+
+        /* 히스토리 */
+        .history-section {
+            border-top: 2px solid var(--bg-color);
+            padding-top: 20px;
+        }
+
+        .history-section h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+
+        #history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #history-list li {
+            background-color: var(--bg-color);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .disclaimer {
+            font-size: 0.75rem;
+            color: #999;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>3.3% 정산 계산기</h1>
+
+    <!-- 모드 선택 -->
+    <div class="toggle-group">
+        <input type="radio" id="mode-forward" name="calc-mode" value="forward" checked onchange="updateUI()">
+        <label for="mode-forward">정산 (세전 → 세후)</label>
+        
+        <input type="radio" id="mode-reverse" name="calc-mode" value="reverse" onchange="updateUI()">
+        <label for="mode-reverse">역산 (세후 → 세전)</label>
+    </div>
+
+    <!-- 단위 절삭/올림 설정 -->
+    <div class="option-group">
+        <input type="radio" id="round-floor" name="round-mode" value="floor" checked onchange="calculate()">
+        <label for="round-floor">원 단위 절삭</label>
+        
+        <input type="radio" id="round-ceil" name="round-mode" value="ceil" onchange="calculate()">
+        <label for="round-ceil">원 단위 올림</label>
+    </div>
+
+    <!-- 금액 입력 -->
+    <div class="input-wrapper">
+        <label id="input-label" for="amount-input">계약 금액 (세전)</label>
+        <input type="text" id="amount-input" placeholder="예: 1,000,000" oninput="formatNumber(this)" onkeypress="handleEnter(event)">
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">계산하기</button>
+
+    <!-- 결과 표시 영역 (저장 대상) -->
+    <div id="capture-area">
+        <div class="result-title" id="result-title">실수령액 (세후)</div>
+        <div class="result-amount"><span id="res-main">0</span>원</div>
+        
+        <div class="detail-row">
+            <span>계약 금액 (세전)</span>
+            <span><span id="res-pretax">0</span>원</span>
+        </div>
+        <div class="detail-row">
+            <span>소득세 (3%)</span>
+            <span><span id="res-tax3">0</span>원</span>
+        </div>
+        <div class="detail-row">
+            <span>지방소득세 (0.3%)</span>
+            <span><span id="res-tax03">0</span>원</span>
+        </div>
+        <div class="detail-row total-tax">
+            <span>공제 세금 합계</span>
+            <span><span id="res-totaltax">0</span>원</span>
+        </div>
+    </div>
+
+    <!-- 저장 버튼 -->
+    <div class="btn-group">
+        <button class="btn-save-img" onclick="saveAsImage()">이미지로 저장</button>
+        <button class="btn-save-pdf" onclick="saveAsPDF()">PDF로 저장</button>
+    </div>
+
+    <!-- 히스토리 영역 -->
+    <div class="history-section">
+        <h3>계산 내역 (최근 순)</h3>
+        <ul id="history-list">
+            <!-- 내역이 여기에 추가됩니다 -->
+        </ul>
+    </div>
+
+    <div class="disclaimer">
+        * 본 계산기는 편의를 위한 도구이며, 실제 세무 신고를 대신하지 않습니다.<br>
+        * 새로고침 시 계산 내역은 초기화됩니다.
+    </div>
+</div>
+
+<script>
+    // 숫자 입력 시 콤마(,) 자동 추가
+    function formatNumber(input) {
+        let value = input.value.replace(/[^0-9]/g, '');
+        if (value) {
+            input.value = Number(value).toLocaleString('ko-KR');
+        } else {
+            input.value = '';
+        }
+    }
+
+    // 엔터키 입력 시 계산 실행
+    function handleEnter(event) {
+        if (event.key === 'Enter') {
+            calculate();
+        }
+    }
+
+    // 모드 전환 시 UI 업데이트
+    function updateUI() {
+        const isForward = document.getElementById('mode-forward').checked;
+        const inputLabel = document.getElementById('input-label');
+        const inputField = document.getElementById('amount-input');
+        const resultTitle = document.getElementById('result-title');
+
+        if (isForward) {
+            inputLabel.innerText = "계약 금액 (세전)";
+            inputField.placeholder = "예: 1,000,000";
+            resultTitle.innerText = "실수령액 (세후)";
+        } else {
+            inputLabel.innerText = "받고 싶은 실수령액 (세후)";
+            inputField.placeholder = "예: 967,000";
+            resultTitle.innerText = "청구해야 할 계약 금액 (세전)";
+        }
+        
+        // 입력창 및 결과 초기화
+        inputField.value = '';
+        resetResult();
+    }
+
+    // 결과창 0으로 초기화
+    function resetResult() {
+        document.getElementById('res-main').innerText = '0';
+        document.getElementById('res-pretax').innerText = '0';
+        document.getElementById('res-tax3').innerText = '0';
+        document.getElementById('res-tax03').innerText = '0';
+        document.getElementById('res-totaltax').innerText = '0';
+    }
+
+    // 메인 계산 로직
+    function calculate() {
+        const inputVal = document.getElementById('amount-input').value.replace(/,/g, '');
+        if (!inputVal || isNaN(inputVal)) {
+            return; // 입력값이 없으면 실행 안 함
+        }
+
+        const amount = Number(inputVal);
+        const isForward = document.getElementById('mode-forward').checked;
+        const isFloor = document.getElementById('round-floor').checked;
+        
+        // 절삭(floor) 또는 올림(ceil) 함수 선택
+        const roundFn = isFloor ? Math.floor : Math.ceil;
+
+        let preTax, postTax, tax3, tax03, totalTax;
+
+        if (isForward) {
+            // 정방향: 세전 -> 세후
+            preTax = amount;
+            tax3 = roundFn(preTax * 0.03);
+            tax03 = roundFn(preTax * 0.003);
+            totalTax = tax3 + tax03;
+            postTax = preTax - totalTax;
+        } else {
+            // 역방향: 세후 -> 세전
+            postTax = amount;
+            preTax = roundFn(postTax / 0.967);
+            tax3 = roundFn(preTax * 0.03);
+            tax03 = roundFn(preTax * 0.003);
+            totalTax = tax3 + tax03;
+            
+            // 역산 시 단수 차이 보정 (세전 - 세금 = 세후가 정확히 맞도록)
+            if (preTax - totalTax !== postTax) {
+                preTax = postTax + totalTax;
+            }
+        }
+
+        // 화면에 결과 출력
+        document.getElementById('res-pretax').innerText = preTax.toLocaleString('ko-KR');
+        document.getElementById('res-tax3').innerText = tax3.toLocaleString('ko-KR');
+        document.getElementById('res-tax03').innerText = tax03.toLocaleString('ko-KR');
+        document.getElementById('res-totaltax').innerText = totalTax.toLocaleString('ko-KR');
+        
+        const mainResult = isForward ? postTax : preTax;
+        document.getElementById('res-main').innerText = mainResult.toLocaleString('ko-KR');
+
+        // 히스토리 추가
+        addHistory(isForward, preTax, postTax, totalTax);
+    }
+
+    // 히스토리 리스트에 추가
+    function addHistory(isForward, preTax, postTax, totalTax) {
+        const historyList = document.getElementById('history-list');
+        const li = document.createElement('li');
+        
+        const modeText = isForward ? "[정산]" : "[역산]";
+        const timeString = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        
+        li.innerHTML = `<strong>${modeText}</strong> 세전 ${preTax.toLocaleString()}원 → 세후 ${postTax.toLocaleString()}원 <br>
+                        <span style="color:#888; font-size:0.8rem;">(세금 ${totalTax.toLocaleString()}원 공제) - ${timeString}</span>`;
+        
+        // 최신 내역이 위로 오도록 prepend
+        historyList.prepend(li);
+    }
+
+    // 이미지로 저장 (html2canvas 사용)
+    function saveAsImage() {
+        const captureArea = document.getElementById('capture-area');
+        html2canvas(captureArea, { scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = '3.3_정산결과.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    }
+
+    // PDF로 저장 (html2canvas + jspdf 사용)
+    function saveAsPDF() {
+        const captureArea = document.getElementById('capture-area');
+        html2canvas(captureArea, { scale: 2 }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            
+            // jsPDF 인스턴스 생성 (A4 기준)
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            // 이미지 비율에 맞춰 PDF에 삽입
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            // 여백(margin)을 10mm 주고 삽입
+            const margin = 10;
+            const finalWidth = pdfWidth - (margin * 2);
+            const finalHeight = (canvas.height * finalWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', margin, margin, finalWidth, finalHeight);
+            pdf.save('3.3_정산결과.pdf');
+        });
+    }
+</script>
+
+</body>
+</html>
